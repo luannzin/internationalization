@@ -1,0 +1,60 @@
+{
+	"name": "internationalization",
+	"version": "1.0.0",
+	"description": "Filesystem-driven i18n engine: folder structure becomes a typed, statically-generated translation object.",
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"bin": {
+		"i18n-gen": "./dist/cli.js"
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"i18n:gen": "node ./dist/cli.js",
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"test": "node --import tsx --test test/*.test.ts"
+	},
+	"keywords": [
+		"i18n",
+		"internationalization",
+		"typescript",
+		"filesystem",
+		"codegen",
+		"nextjs"
+	],
+	"author": "",
+	"license": "ISC",
+	"devEngines": {
+		"packageManager": {
+			"name": "pnpm",
+			"version": "^11.9.0",
+			"onFail": "download"
+		}
+	},
+	"dependencies": {
+		"bundle-require": "^5.1.0",
+		"chokidar": "^4.0.3",
+		"pathe": "^2.0.3"
+	},
+	"peerDependencies": {
+		"esbuild": "*"
+	},
+	"devDependencies": {
+		"@types/node": "^26.0.0",
+		"esbuild": "^0.27.7",
+		"tsup": "^8.5.1",
+		"tsx": "^4.0.0",
+		"typescript": "^6.0.3"
+	}
+}
