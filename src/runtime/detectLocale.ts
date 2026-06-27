@@ -20,7 +20,12 @@ export interface DetectLocaleOptions<L extends string> {
 	prefer?: readonly string[];
 }
 
-function match<L extends string>(
+/**
+ * Match a single candidate tag against the supported locales, case-insensitively
+ * and tolerant of region subtags: the full tag is tried first, then its primary
+ * subtag (`pt-BR` → `pt`). Returns the supported locale, or `undefined`.
+ */
+export function matchLocale<L extends string>(
 	candidate: string,
 	supported: readonly L[],
 ): L | undefined {
@@ -41,7 +46,7 @@ export function detectLocale<L extends string>(
 	}
 
 	for (const candidate of candidates) {
-		const hit = match(candidate, options.supported);
+		const hit = matchLocale(candidate, options.supported);
 		if (hit) return hit;
 	}
 

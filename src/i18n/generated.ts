@@ -27,3 +27,16 @@ export type Locale = keyof typeof t;
 export function getT<L extends Locale>(locale: L): (typeof t)[L] {
 	return t[locale];
 }
+
+/** Runtime config for `better-intl/runtime` (findLocale / updateLocale). */
+export const intlConfig = {
+	"defaultLocale": "en",
+	"locales": [
+		"en",
+		"pt"
+	],
+	"storage": {
+		"type": "cookie",
+		"key": "locale"
+	}
+} as const;

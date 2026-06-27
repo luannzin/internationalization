@@ -9,6 +9,17 @@
 /** What to do when a key is missing one of the required locales. */
 export type OnMissing = "error" | "warn" | "silent";
 
+/**
+ * Where the user's preferred locale is persisted. `cookie` works on both the
+ * server (read/written via `next/headers`) and the client; `localStorage` is
+ * client-only.
+ */
+export interface LocaleStorage {
+	type: "cookie" | "localStorage";
+	/** Storage key / cookie name, e.g. `"locale"`. */
+	key: string;
+}
+
 /** Resolved configuration after defaults are applied. */
 export interface I18nConfig {
 	/** Directory scanned for colocated `t.ts` leaves, e.g. `./app`. */
@@ -33,6 +44,11 @@ export interface I18nConfig {
 	 * fallback, so listing it is optional.
 	 */
 	fallback?: Record<string, string[]>;
+	/**
+	 * How the runtime locale preference is stored. Emitted into the generated
+	 * module as `intlConfig.storage` so `findLocale`/`updateLocale` can honour it.
+	 */
+	storage: LocaleStorage;
 }
 
 /** User-facing config: everything optional except nothing — all has defaults. */

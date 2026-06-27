@@ -6,6 +6,7 @@ const DEFAULTS = {
 	defaultLocale: "en",
 	out: "./src/i18n/generated.ts",
 	onMissing: "warn",
+	storage: { type: "cookie", key: "locale" },
 } satisfies Omit<I18nConfig, "locales" | "fallback">;
 
 /**
@@ -22,5 +23,6 @@ export function defineConfig(user: I18nUserConfig = {}): I18nConfig {
 		out: resolve(cwd, user.out ?? DEFAULTS.out),
 		onMissing: user.onMissing ?? DEFAULTS.onMissing,
 		fallback: user.fallback,
+		storage: { ...DEFAULTS.storage, ...user.storage },
 	};
 }

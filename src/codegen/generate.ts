@@ -30,7 +30,7 @@ async function scan(config: I18nConfig): Promise<TreeNode> {
 export async function runGenerate(config: I18nConfig): Promise<string[]> {
 	const tree = await scan(config);
 	const resolved = transpose(tree, config);
-	const source = emit(resolved);
+	const source = emit(resolved, config);
 	await mkdir(dirname(config.out), { recursive: true });
 	await writeFile(config.out, source, "utf8");
 	return Object.keys(resolved).sort();

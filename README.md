@@ -2,7 +2,7 @@
 
 # 🌐 better-intl
 
-**Filesystem-driven i18n for TypeScript.**
+**The easiest and most intuitive internationalization framework for Next.js.**
 
 Your folder structure becomes a fully typed, statically-generated translation object — with zero runtime overhead.
 
@@ -60,6 +60,66 @@ t.homepage.title({ name: "Ada" }) // "Olá Ada"
 t.homepage.hero.subtitle          // "Bem-vindo"
 ```
 
+## Detecting the active locale
+
+Don't want to pass the locale by hand? Two resolvers hand back the active locale's slice of
+`t` — a **synchronous** one for the client and an **async** one for the server (server cookie
+/ header reads are async in Next). Keeping them separate means `client.ts` never forces your
+module to become async.
+
+Best practice is a small `lib/i18n/` folder:
+
+```ts
+// lib/i18n/client.ts
+import { findLocaleClient } from "better-intl/runtime"
+import { t as translations, intlConfig } from "@/i18n/generated"
+
+export const t = findLocaleClient(translations, intlConfig)
+```
+
+```ts
+// lib/i18n/server.ts
+import { findLocaleServer } from "better-intl/runtime"
+import { t as translations, intlConfig } from "@/i18n/generated"
+
+export const t = await findLocaleServer(translations, intlConfig)
+```
+
+```ts
+// lib/i18n/index.ts
+import { t as clientT } from "./client"
+import { t as serverT } from "./server"
+
+export const t = typeof window !== "undefined" ? clientT : serverT
+```
+
+```ts
+// any component
+import { t } from "@/lib/i18n"
+t.homepage.title({ name: "Ada" })
+```
+
+Both resolve in the same order:
+
+1. the **stored preference** (cookie or `localStorage`, per your config);
+2. else the **browser** languages (`navigator.languages`, client) or the **`Accept-Language`**
+   header (`next/headers`, server);
+3. else `defaultLocale`.
+
+Candidates are matched tolerant of region subtags — `pt-BR` resolves to a supported `pt`.
+Passing `intlConfig` wires in your configured storage key/type; calling with just
+`translations` works too, defaulting to a `"locale"` cookie.
+
+Persist a choice with `updateLocale` (isomorphic — client cookie/`localStorage`, or a server
+cookie inside a Server Action / Route Handler):
+
+```ts
+import { updateLocale } from "better-intl/runtime"
+import { intlConfig } from "@/i18n/generated"
+
+await updateLocale("pt", intlConfig)
+```
+
 ## Setup (Next.js)
 
 ```ts
@@ -90,6 +150,10 @@ export default {
   locales: ["en", "pt", "es"],    // required set; omit to use the union found in source
   onMissing: "warn",              // "error" | "warn" | "silent" (default: "warn")
   fallback: { es: ["pt"] },       // per-locale chains; defaultLocale is always appended
+  storage: {                      // where findLocale/updateLocale persist the preference
+    type: "cookie",               // "cookie" (default, works SSR+CSR) | "localStorage" (CSR only)
+    key: "locale",                // cookie name / storage key (default: "locale")
+  },
 } satisfies I18nUserConfig
 ```
 
