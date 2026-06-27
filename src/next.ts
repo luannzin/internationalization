@@ -13,7 +13,7 @@
  * @example
  * ```ts
  * // next.config.ts
- * import { withInternationalization } from "internationalization/next";
+ * import { withInternationalization } from "better-intl/next";
  *
  * export default withInternationalization({
  *   reactStrictMode: true,
@@ -23,6 +23,7 @@
 
 import { runGenerate, watch } from "./codegen/run.js";
 import { defineConfig } from "./config.js";
+import { loadUserConfig } from "./loadConfig.js";
 import type { I18nUserConfig } from "./types.js";
 
 /** Guard against duplicate initialization (dev server restarts, etc.). */
@@ -42,7 +43,7 @@ interface NextConfig {
  * @example
  * ```ts
  * // next.config.ts
- * import { withInternationalization } from "internationalization/next";
+ * import { withInternationalization } from "better-intl/next";
  *
  * export default withInternationalization({
  *   reactStrictMode: true,
@@ -52,7 +53,7 @@ interface NextConfig {
  * @example
  * ```ts
  * // next.config.ts — with custom i18n options
- * import { withInternationalization } from "internationalization/next";
+ * import { withInternationalization } from "better-intl/next";
  *
  * export default withInternationalization(
  *   { reactStrictMode: true },
@@ -66,7 +67,9 @@ export async function withInternationalization(
 ): Promise<NextConfig> {
 	if (!active) {
 		active = true;
-		const resolved = defineConfig(i18nConfig);
+		// Merge the optional `intl.config.*` under any inline overrides passed here.
+		const fileConfig = await loadUserConfig();
+		const resolved = defineConfig({ ...fileConfig, ...i18nConfig });
 
 		if (process.env.NODE_ENV === "production") {
 			const locales = await runGenerate(resolved);

@@ -1,14 +1,15 @@
 import { bundleRequire } from "bundle-require";
-import type { LeafValue } from "../types.js";
+import type { TranslationTree } from "../types.js";
 
 /**
- * Load a `t.ts` leaf at generation time and return its exported value object.
+ * Load a `t.ts` leaf at generation time and return its authored translation
+ * tree (nested groups whose leaves are locale maps).
  *
  * Accepts either `export const t = {...}` or `export default {...}`. Runs the
  * file through esbuild (via bundle-require) so TS/ESM leaves evaluate without a
  * separate build step.
  */
-export async function loadLeaf(file: string): Promise<LeafValue> {
+export async function loadLeaf(file: string): Promise<TranslationTree> {
 	const { mod } = await bundleRequire({ filepath: file });
 	const value = mod.t ?? mod.default;
 
@@ -18,5 +19,5 @@ export async function loadLeaf(file: string): Promise<LeafValue> {
 		);
 	}
 
-	return value as LeafValue;
+	return value as TranslationTree;
 }

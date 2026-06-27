@@ -1,28 +1,7 @@
 #!/usr/bin/env node
-import { existsSync } from "node:fs";
-import { pathToFileURL } from "node:url";
-import { resolve } from "pathe";
 import { runGenerate, watch } from "./codegen/run.js";
 import { defineConfig } from "./config.js";
-import type { I18nUserConfig } from "./types.js";
-
-const CONFIG_FILES = ["i18n.config.ts", "i18n.config.js", "i18n.config.mjs"];
-
-/** Load an optional `i18n.config.*` from cwd via bundle-require. */
-async function loadUserConfig(): Promise<I18nUserConfig> {
-	const found = CONFIG_FILES.map((f) => resolve(process.cwd(), f)).find(
-		existsSync,
-	);
-	if (!found) return {};
-
-	if (found.endsWith(".ts")) {
-		const { bundleRequire } = await import("bundle-require");
-		const { mod } = await bundleRequire({ filepath: found });
-		return (mod.default ?? mod.config ?? {}) as I18nUserConfig;
-	}
-	const mod = await import(pathToFileURL(found).href);
-	return (mod.default ?? mod.config ?? {}) as I18nUserConfig;
-}
+import { loadUserConfig } from "./loadConfig.js";
 
 async function main() {
 	const args = new Set(process.argv.slice(2));

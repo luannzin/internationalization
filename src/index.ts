@@ -16,5 +16,8 @@ export type {
 	I18nUserConfig,
 	Leaf,
 	LeafValue,
+	LocaleMap,
+	OnMissing,
+	TranslationTree,
 	TreeNode,
 } from "./types.js";
