@@ -138,6 +138,10 @@ function sliceFor<T extends Record<string, unknown>>(
  * matched tolerant of region subtags (`pt-BR` matches `pt`), and returns that
  * locale's slice of the generated `t`.
  *
+ * **Safe to evaluate on the server.** When `lib/i18n/index.ts` imports both
+ * `./client` and `./server`, this runs during SSR too; with no browser globals
+ * it short-circuits to `defaultLocale` instead of reading them. It never throws.
+ *
  * @example
  * ```ts
  * // lib/i18n/client.ts
@@ -151,6 +155,11 @@ export function findLocaleClient<T extends Record<string, unknown>>(
 	config: IntlRuntimeConfig<Extract<keyof T, string>> = {},
 ): T[keyof T] {
 	const { supported, fallback, storage } = settings(translations, config);
+
+	// Not in a browser: no cookie/localStorage/navigator to read. Resolve to the
+	// default locale so this is harmless when evaluated during SSR.
+	if (typeof window === "undefined") return translations[fallback as keyof T];
+
 	return sliceFor(translations, clientCandidates(storage), supported, fallback);
 }
 
@@ -159,6 +168,12 @@ export function findLocaleClient<T extends Record<string, unknown>>(
  * `Accept-Language` (both via `next/headers`) → `defaultLocale`, and returns
  * that locale's slice of the generated `t`. Degrades to `defaultLocale` outside
  * a Next server context.
+ *
+ * **Safe to evaluate on the client.** When `lib/i18n/index.ts` imports both
+ * `./client` and `./server`, this module also runs in the browser bundle — so if
+ * there's no server context (`typeof window !== "undefined"`), it short-circuits
+ * to `defaultLocale` and never touches `next/headers` (importing that in the
+ * browser is an error). It never throws.
  *
  * @example
  * ```ts
@@ -173,6 +188,11 @@ export async function findLocaleServer<T extends Record<string, unknown>>(
 	config: IntlRuntimeConfig<Extract<keyof T, string>> = {},
 ): Promise<T[keyof T]> {
 	const { supported, fallback, storage } = settings(translations, config);
+
+	// Not on a server: no request cookies/headers to read, and `next/headers`
+	// must not be imported in the browser. Resolve to the default locale.
+	if (typeof window !== "undefined") return translations[fallback as keyof T];
+
 	return sliceFor(
 		translations,
 		await serverCandidates(storage),
