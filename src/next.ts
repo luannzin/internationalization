@@ -29,12 +29,13 @@ import type { I18nUserConfig } from "./types.js";
 /** Guard against duplicate initialization (dev server restarts, etc.). */
 let active = false;
 
-interface NextConfig {
-	[key: string]: unknown;
-}
-
 /**
  * Wrap your Next.js config to enable automatic translation generation.
+ *
+ * Generic over the config shape so it accepts and returns your config
+ * unchanged — including Next's own `NextConfig` type, which is not assignable to
+ * a loose `{ [key: string]: unknown }`. `better-intl` keeps `next` an optional
+ * peer, so it never imports Next's types directly.
  *
  * @param nextConfig  — your regular Next.js configuration object
  * @param i18nConfig  — optional i18n overrides (root, defaultLocale, out, locales)
@@ -61,10 +62,10 @@ interface NextConfig {
  * );
  * ```
  */
-export async function withInternationalization(
-	nextConfig: NextConfig = {},
+export async function withInternationalization<T extends object = object>(
+	nextConfig: T = {} as T,
 	i18nConfig?: I18nUserConfig,
-): Promise<NextConfig> {
+): Promise<T> {
 	if (!active) {
 		active = true;
 		// Merge the optional `intl.config.*` under any inline overrides passed here.
