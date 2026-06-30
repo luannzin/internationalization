@@ -2,7 +2,7 @@
  * Public library surface.
  *
  * The generator (scanner + codegen) is the heart of the library. The runtime
- * `t`/`getT` live in the *generated* file inside the user's project, not here —
+ * `t` lives in the *generated* file inside the user's project, not here —
  * so this entry only exposes config, the optional locale picker, the
  * programmatic generate API, and shared types.
  */

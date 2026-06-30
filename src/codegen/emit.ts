@@ -81,11 +81,10 @@ function emitIntlConfig(
 
 /**
  * Emit the full generated module source: the `translations` object, the
- * `Locale` type, the explicit `getT` accessor, the `intlConfig` data, and the
- * ready-to-use `t` / `setLocale` / `updateLocale` produced by `createI18n` —
- * bound to `translations` + `intlConfig` so the app never re-passes them. The
- * input is the transposed `{ [locale]: resolvedTree }` object — each top-level
- * key is a locale.
+ * `Locale` type, the `intlConfig` data, and the ready-to-use `t` / `setLocale` /
+ * `updateLocale` produced by `createI18n` — bound to `translations` +
+ * `intlConfig` so the app never re-passes them. The input is the transposed
+ * `{ [locale]: resolvedTree }` object — each top-level key is a locale.
  */
 export function emit(
 	resolved: Record<string, LeafValue>,
@@ -96,11 +95,6 @@ export function emit(
 export const translations = ${body} as const;
 
 export type Locale = keyof typeof translations;
-
-/** Explicit, locale-first accessor: \`getT("pt").homepage.title\`. */
-export function getT<L extends Locale>(locale: L): (typeof translations)[L] {
-	return translations[locale];
-}
 
 /** Runtime config for \`better-intl/runtime\`, baked into the helpers below. */
 export const intlConfig = ${emitIntlConfig(resolved, config)} as const;

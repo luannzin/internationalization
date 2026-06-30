@@ -25,11 +25,6 @@ export const translations = {
 
 export type Locale = keyof typeof translations;
 
-/** Explicit, locale-first accessor: `getT("pt").homepage.title`. */
-export function getT<L extends Locale>(locale: L): (typeof translations)[L] {
-	return translations[locale];
-}
-
 /** Runtime config for `better-intl/runtime`, baked into the helpers below. */
 export const intlConfig = {
 	"defaultLocale": "en",
