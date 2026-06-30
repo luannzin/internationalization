@@ -99,6 +99,17 @@ The file system becomes your i18n structure.
 bun add better-intl
 ```
 
+#### Or scaffold everything at once
+
+```bash
+bunx --bun better-intl init
+```
+
+`init` writes `intl.config.ts`, drops a starter `app/t.ts`, runs the first
+generate, and prints the two manual steps below. It is idempotent — existing
+files are left untouched. If you run it, skip to step 5; steps 2–4 are what it
+sets up (and explains).
+
 ---
 
 ### 2. Add the plugin
@@ -156,7 +167,7 @@ import { t, setLocale, updateLocale } from "@/i18n/generated"
 `t` is the active locale's slice (sync on both client and server), `setLocale()`
 fills the per-request locale once in your root layout, and `updateLocale(locale)`
 persists a new preference to the cookie. They are produced by `createI18n`, which
-the generator calls for you — you never pass `translations` or `intlConfig`.
+the generator calls for you.
 
 ---
 

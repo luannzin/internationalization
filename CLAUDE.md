@@ -16,7 +16,7 @@ Consumption is locale-first under the hood (`translations["pt"].homepage.title(.
 - Run one test: `node --import tsx --test test/<name>.test.ts`.
 - `pnpm i18n:gen` — invoke the built CLI (`dist/cli.js`); regenerates the output module. The CLI is **not** the primary path (the Next plugin is) and is kept working but not actively developed.
 
-The CLI binary is `i18n-gen` (see `bin` in package.json). `i18n-gen --watch` / `-w` regenerates on change.
+The CLI binary is `i18n-gen` (see `bin` in package.json). `i18n-gen --watch` / `-w` regenerates on change. `i18n-gen init` ([src/init.ts](src/init.ts)) scaffolds a fresh setup — writes `intl.config.ts`, a starter `<root>/t.ts`, runs the first generate, and prints the remaining manual wiring (Next plugin + layout `setLocale`). It is **idempotent**: existing files are left untouched (logged `=`), only the generate re-runs. Invoked as `bunx --bun better-intl init` / `npx better-intl init`.
 
 > Heads-up on `pnpm build`: a deps mismatch in this environment makes pnpm's pre-flight `install` fail before tsup runs. If that happens, build directly with `node ./node_modules/tsup/dist/cli-default.js`.
 
@@ -48,7 +48,7 @@ A single pass flows scan → load → build tree → **transpose** → emit → 
 ## Entry points
 
 - **Next.js plugin (primary)** — [src/next.ts](src/next.ts): `withInternationalization(nextConfig, i18nConfig?)` wraps `next.config`. It loads `intl.config.*` and merges any inline `i18nConfig` over it. In production it generates once; in dev it calls `watch()` (initial gen + chokidar watcher). It deliberately touches no bundler internals — regenerating `generated.ts` on disk lets Next's own file watcher trigger HMR. A module-level `active` guard prevents duplicate init across dev restarts. The watcher ([src/codegen/run.ts](src/codegen/run.ts)) regenerates **only** when an actual leaf changes — it matches `basename(path) === "t.ts"` (note: `endsWith("t.ts")` would wrongly match `list.ts`/`component.ts`) — has no blanket `addDir`/`unlinkDir` handlers (leaf add/unlink already covers folder add/remove), and **debounces** (~75 ms) so a rename's unlink+add burst collapses into one pass.
-- **CLI** — [src/cli.ts](src/cli.ts) (`i18n-gen` bin). Secondary; shares `loadUserConfig`/`runGenerate`.
+- **CLI** — [src/cli.ts](src/cli.ts) (`i18n-gen` bin). Secondary; shares `loadUserConfig`/`runGenerate`. Dispatches the first non-flag arg: `init` → `runInit` ([src/init.ts](src/init.ts)), otherwise generate (`--watch`/`-w` to watch).
 - **Codegen library** — [src/index.ts](src/index.ts) re-exports `runGenerate`, `watch`, `defineConfig`, `detectLocale`, and the shared types. ⚠️ This entry imports the codegen, so it pulls in `node:fs`/`chokidar`/`bundle-require` — **never import app-runtime helpers from `better-intl`**; use `better-intl/runtime`.
 - **Runtime** — [src/runtime.ts](src/runtime.ts) (`better-intl/runtime`): `findLocaleClient`, `findLocaleServer`, `updateLocale`, `detectLocale`/`matchLocale`. Imports **none** of the codegen, so it is safe in a client bundle.
 
