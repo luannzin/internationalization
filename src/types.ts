@@ -10,13 +10,13 @@
 export type OnMissing = "error" | "warn" | "silent";
 
 /**
- * Where the user's preferred locale is persisted. `cookie` works on both the
- * server (read/written via `next/headers`) and the client; `localStorage` is
- * client-only.
+ * Where the user's preferred locale is persisted. Only `cookie` is supported:
+ * it is the one store readable on both the server (via `next/headers`) and the
+ * client. `localStorage` is intentionally unsupported — it is invisible to SSR.
  */
 export interface LocaleStorage {
-	type: "cookie" | "localStorage";
-	/** Storage key / cookie name, e.g. `"locale"`. */
+	type: "cookie";
+	/** Cookie name, e.g. `"locale"`. */
 	key: string;
 }
 

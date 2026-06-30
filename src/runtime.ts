@@ -10,6 +10,7 @@ export type { DetectLocaleOptions } from "./runtime/detectLocale.js";
 export { detectLocale, matchLocale } from "./runtime/detectLocale.js";
 export type { IntlRuntimeConfig } from "./runtime/locale.js";
 export {
+	createI18n,
 	createServerT,
 	findLocaleClient,
 	findLocaleServer,

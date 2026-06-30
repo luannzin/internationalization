@@ -4,7 +4,7 @@
  * Locale resolution is split by environment instead of branching at runtime, so
  * each side stays honest about being sync vs async:
  *
- *   - `findLocaleClient` — **synchronous** (cookie/`localStorage` + `navigator`).
+ *   - `findLocaleClient` — **synchronous** (cookie + `navigator`).
  *     Safe to back a plain `export const t = findLocaleClient(...)` imported from
  *     client components, with no `await` turning the module async.
  *   - `findLocaleServer` — **async** (cookie + `Accept-Language` via
@@ -18,7 +18,7 @@
  * bundle.
  */
 
-// @ts-ignore — `react` is a peer dependency, resolved in the user's app.
+// @ts-expect-error — `react` is a peer dependency, resolved in the user's app.
 import { cache } from "react";
 import type { LocaleStorage } from "../types.js";
 import { matchLocale } from "./detectLocale.js";
@@ -66,18 +66,13 @@ function parseAcceptLanguage(header: string | null | undefined): string[] {
 		.map((entry) => entry.tag);
 }
 
-/** Gather locale candidates in the browser: stored value, then navigator. */
+/** Gather locale candidates in the browser: stored cookie, then navigator. */
 function clientCandidates(storage: LocaleStorage): string[] {
 	const candidates: string[] = [];
 
-	if (typeof window !== "undefined") {
-		if (storage.type === "localStorage") {
-			const stored = window.localStorage?.getItem(storage.key);
-			if (stored) candidates.push(stored);
-		} else if (typeof document !== "undefined") {
-			const stored = parseCookies(document.cookie)[storage.key];
-			if (stored) candidates.push(stored);
-		}
+	if (typeof document !== "undefined") {
+		const stored = parseCookies(document.cookie)[storage.key];
+		if (stored) candidates.push(stored);
 	}
 
 	if (typeof navigator !== "undefined") {
@@ -91,14 +86,12 @@ function clientCandidates(storage: LocaleStorage): string[] {
 /** Gather locale candidates on the server via Next's `next/headers`. */
 async function serverCandidates(storage: LocaleStorage): Promise<string[]> {
 	try {
-		// @ts-ignore — optional peer, present only in the user's Next app.
+		// @ts-expect-error — optional peer, present only in the user's Next app.
 		const { cookies, headers } = await import("next/headers");
 
 		const candidates: string[] = [];
-		if (storage.type === "cookie") {
-			const stored = (await cookies()).get(storage.key)?.value;
-			if (stored) candidates.push(stored);
-		}
+		const stored = (await cookies()).get(storage.key)?.value;
+		if (stored) candidates.push(stored);
 		const accept = (await headers()).get("accept-language");
 		candidates.push(...parseAcceptLanguage(accept));
 		return candidates;
@@ -113,8 +106,10 @@ function settings<T extends Record<string, unknown>>(
 	translations: T,
 	config: IntlRuntimeConfig<Extract<keyof T, string>>,
 ) {
-	const supported = (config.locales ??
-		Object.keys(translations)) as Extract<keyof T, string>[];
+	const supported = (config.locales ?? Object.keys(translations)) as Extract<
+		keyof T,
+		string
+	>[];
 	return {
 		supported,
 		fallback: config.defaultLocale ?? supported[0],
@@ -142,7 +137,8 @@ async function resolveServerLocale<T extends Record<string, unknown>>(
 	config: IntlRuntimeConfig<Extract<keyof T, string>>,
 ): Promise<Extract<keyof T, string>> {
 	const { supported, fallback, storage } = settings(translations, config);
-	if (typeof window !== "undefined") return fallback as Extract<keyof T, string>;
+	if (typeof window !== "undefined")
+		return fallback as Extract<keyof T, string>;
 	for (const candidate of await serverCandidates(storage)) {
 		const hit = matchLocale(candidate, supported);
 		if (hit) return hit;
@@ -152,7 +148,7 @@ async function resolveServerLocale<T extends Record<string, unknown>>(
 
 /**
  * **Client-side** locale resolution — synchronous. Detects from the stored
- * preference (cookie / `localStorage`) → `navigator.languages` → `defaultLocale`,
+ * preference (cookie) → `navigator.languages` → `defaultLocale`,
  * matched tolerant of region subtags (`pt-BR` matches `pt`), and returns that
  * locale's slice of the generated `t`.
  *
@@ -164,7 +160,7 @@ async function resolveServerLocale<T extends Record<string, unknown>>(
  * ```ts
  * // lib/i18n/client.ts
  * import { findLocaleClient } from "better-intl/runtime";
- * import { t as translations, intlConfig } from "@/i18n/generated";
+ * import { translations, intlConfig } from "@/i18n/generated";
  * export const t = findLocaleClient(translations, intlConfig);
  * ```
  */
@@ -174,7 +170,7 @@ export function findLocaleClient<T extends Record<string, unknown>>(
 ): T[keyof T] {
 	const { supported, fallback, storage } = settings(translations, config);
 
-	// Not in a browser: no cookie/localStorage/navigator to read. Resolve to the
+	// Not in a browser: no cookie/navigator to read. Resolve to the
 	// default locale so this is harmless when evaluated during SSR.
 	if (typeof window === "undefined") return translations[fallback as keyof T];
 
@@ -197,7 +193,7 @@ export function findLocaleClient<T extends Record<string, unknown>>(
  * ```ts
  * // lib/i18n/server.ts
  * import { findLocaleServer } from "better-intl/runtime";
- * import { t as translations, intlConfig } from "@/i18n/generated";
+ * import { translations, intlConfig } from "@/i18n/generated";
  * export const t = await findLocaleServer(translations, intlConfig);
  * ```
  */
@@ -225,7 +221,7 @@ export async function findLocaleServer<T extends Record<string, unknown>>(
  * ```ts
  * // lib/i18n/server.ts
  * import { createServerT } from "better-intl/runtime";
- * import { t as translations, intlConfig } from "@/i18n/generated";
+ * import { translations, intlConfig } from "@/i18n/generated";
  * export const { t, setLocale } = createServerT(translations, intlConfig);
  * ```
  * ```tsx
@@ -280,10 +276,51 @@ export function createServerT<T extends Record<string, unknown>>(
 }
 
 /**
- * Persist the user's locale preference to the configured store. Isomorphic:
- * writes a cookie / `localStorage` entry on the client, or a cookie via
- * `next/headers` on the server (only valid inside a Server Action or Route
- * Handler — a no-op otherwise).
+ * One-shot binder: pass the generated `translations` + `intlConfig` **once** and
+ * get back ready-to-use, zero-argument helpers. This is what the generated
+ * module calls so your app never re-passes translations or config:
+ *
+ *   - `t` — the active locale's slice. On the client it is the resolved slice
+ *     (`findLocaleClient`); on the server it is the synchronous per-request proxy
+ *     (`createServerT`), filled by `setLocale`. The environment is picked once,
+ *     at module init, by `typeof window`.
+ *   - `setLocale()` — call once per request in the root layout (server). A no-op
+ *     on the client.
+ *   - `updateLocale(locale)` — persist a new preference to the cookie, bound to
+ *     the configured storage.
+ *
+ * @example
+ * ```ts
+ * // emitted into generated.ts
+ * const i18n = createI18n(translations, intlConfig);
+ * export const { t, setLocale, updateLocale } = i18n;
+ * ```
+ */
+export function createI18n<T extends Record<string, unknown>>(
+	translations: T,
+	config: IntlRuntimeConfig<Extract<keyof T, string>> = {},
+): {
+	t: T[keyof T];
+	setLocale: () => Promise<Extract<keyof T, string>>;
+	updateLocale: (locale: Extract<keyof T, string>) => Promise<void>;
+} {
+	const server = createServerT(translations, config);
+	const t =
+		typeof window !== "undefined"
+			? findLocaleClient(translations, config)
+			: server.t;
+	return {
+		t,
+		setLocale: server.setLocale,
+		updateLocale: (locale) => updateLocale(locale, config),
+	};
+}
+
+/**
+ * Persist the user's locale preference to the cookie. Isomorphic: writes
+ * `document.cookie` on the client, or the cookie via `next/headers` on the
+ * server (only valid inside a Server Action or Route Handler — a no-op
+ * otherwise).
  */
 export async function updateLocale(
 	locale: string,
@@ -293,17 +330,12 @@ export async function updateLocale(
 	const maxAge = 60 * 60 * 24 * 365; // one year
 
 	if (typeof window !== "undefined") {
-		if (storage.type === "localStorage") {
-			window.localStorage?.setItem(storage.key, locale);
-		} else {
-			document.cookie = `${storage.key}=${encodeURIComponent(locale)}; path=/; max-age=${maxAge}; samesite=lax`;
-		}
+		document.cookie = `${storage.key}=${encodeURIComponent(locale)}; path=/; max-age=${maxAge}; samesite=lax`;
 		return;
 	}
 
-	if (storage.type !== "cookie") return; // no server-side localStorage
 	try {
-		// @ts-ignore — optional peer, present only in the user's Next app.
+		// @ts-expect-error — optional peer, present only in the user's Next app.
 		const { cookies } = await import("next/headers");
 		(await cookies()).set(storage.key, locale, {
 			path: "/",

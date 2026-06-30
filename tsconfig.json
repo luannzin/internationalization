@@ -5,6 +5,9 @@
 		"ignoreDeprecations": "6.0",
 		"types": ["node"],
 		"moduleResolution": "Bundler",
+		"paths": {
+			"better-intl/runtime": ["./src/runtime.ts"]
+		},
 		"lib": ["ES2022", "DOM"],
 		"declaration": true,
 		"strict": true,

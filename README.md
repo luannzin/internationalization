@@ -144,18 +144,19 @@ export default {
 
 ---
 
-### 4. Create your i18n entry
+### 4. There's no step 4
+
+The generated module already exports everything bound to your `translations`
+and config — there's no `lib/i18n` wiring to write. Import `t` straight from it:
 
 ```ts
-// lib/i18n.ts
-import { findLocaleClient, createServerT } from "better-intl/runtime"
-import { t, intlConfig } from "@/i18n/generated"
-
-export const clientT = findLocaleClient(t, intlConfig)
-export const { t: serverT, setLocale } = createServerT(t, intlConfig)
-
-export const t = typeof window !== "undefined" ? clientT : serverT
+import { t, setLocale, updateLocale } from "@/i18n/generated"
 ```
+
+`t` is the active locale's slice (sync on both client and server), `setLocale()`
+fills the per-request locale once in your root layout, and `updateLocale(locale)`
+persists a new preference to the cookie. They are produced by `createI18n`, which
+the generator calls for you — you never pass `translations` or `intlConfig`.
 
 ---
 
@@ -164,7 +165,7 @@ export const t = typeof window !== "undefined" ? clientT : serverT
 ```tsx
 // app/layout.tsx
 import { Suspense } from "react"
-import { setLocale } from "@/lib/i18n"
+import { setLocale } from "@/i18n/generated"
 
 async function Localized({ children }: { children: React.ReactNode }) {
   await setLocale()
@@ -205,7 +206,7 @@ export default {
 ### Use anywhere (server or client)
 
 ```tsx
-import { t } from "@/lib/i18n"
+import { t } from "@/i18n/generated"
 
 export function Header() {
   return (
@@ -225,7 +226,7 @@ No hooks. No async. No context.
 
 better-intl resolves locale in this order:
 
-1. user stored preference (cookie / localStorage)
+1. user stored preference (cookie)
 2. browser / Accept-Language
 3. fallback chain
 4. defaultLocale

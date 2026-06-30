@@ -2,8 +2,9 @@
 // Regenerated automatically by the Next.js plugin on dev/build.
 
 /* eslint-disable */
+import { createI18n } from "better-intl/runtime";
 
-export const t = {
+export const translations = {
 	en: {
 		homepage: {
 			hero: {
@@ -22,13 +23,14 @@ export const t = {
 	},
 } as const;
 
-export type Locale = keyof typeof t;
+export type Locale = keyof typeof translations;
 
-export function getT<L extends Locale>(locale: L): (typeof t)[L] {
-	return t[locale];
+/** Explicit, locale-first accessor: `getT("pt").homepage.title`. */
+export function getT<L extends Locale>(locale: L): (typeof translations)[L] {
+	return translations[locale];
 }
 
-/** Runtime config for `better-intl/runtime` (findLocale / updateLocale). */
+/** Runtime config for `better-intl/runtime`, baked into the helpers below. */
 export const intlConfig = {
 	"defaultLocale": "en",
 	"locales": [
@@ -40,3 +42,9 @@ export const intlConfig = {
 		"key": "locale"
 	}
 } as const;
+
+// Helpers bound to `translations` + `intlConfig` once. Import `t` anywhere
+// (sync on both client and server); call `setLocale()` once per request in the
+// root layout; call `updateLocale(locale)` to persist a new preference.
+const i18n = createI18n(translations, intlConfig);
+export const { t, setLocale, updateLocale } = i18n;
