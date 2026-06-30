@@ -2,10 +2,10 @@
 
 # 🌐 better-intl
 
-**The easiest and most intuitive internationalization framework for Next.js.**
+**The simplest way to build internationalization in Next.js — fully typed, file-based, zero runtime.**
 
-Colocate translations with your features, write each key once with all its locales inline,
-and consume a single fully-typed, auto-generated `t` — with zero runtime overhead.
+Stop managing translation files. Stop jumping between locales.
+Just colocate translations with your features and import a single `t`.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -13,11 +13,17 @@ and consume a single fully-typed, auto-generated `t` — with zero runtime overh
 
 </div>
 
-## Why better-intl
+# ⚡ The idea
 
-Drop a `t.ts` next to the feature it belongs to and write **locale-per-key** — you think
-"I need to translate _Delete account_", not "I need to edit the English file", and a missing
-locale is obvious right at the call site:
+Instead of splitting translations across files per language:
+
+```
+/locales/en.json
+/locales/pt.json
+/locales/es.json
+```
+
+You write translations **next to the feature they belong to**, once:
 
 ```ts
 // app/homepage/t.ts
@@ -29,20 +35,63 @@ export default {
 }
 ```
 
-better-intl scans every `t.ts`, **transposes** it into a locale-keyed module, and gives you a
-single typed `t`. There's **no runtime library** — your app only imports the generated file —
-and `{tokens}` become typed functions automatically:
+That’s it.
 
-```tsx
-import { t } from "@/lib/i18n"
-
-t.homepage.title({ name: "Ada" }) // "Olá Ada"  ← fully typed, autocompleted
-t.homepage.hero.subtitle          // "Bem-vindo"
-```
+You think in **features**, not files.
+You think in **meaning**, not locales.
 
 ---
 
-## Setup
+# 🚀 What you get
+
+From those `t.ts` files, better-intl generates a **fully typed translation tree**:
+
+```ts
+import { t } from "@/i18n/generated"
+
+t.homepage.title({ name: "Ada" }) // "Olá Ada"
+t.homepage.hero.subtitle          // "Bem-vindo"
+```
+
+### No hooks
+
+### No providers
+
+### No runtime i18n library
+
+### No string keys
+
+### No missing translations at runtime
+
+Just TypeScript + generated code.
+
+---
+
+# 🧠 Mental model
+
+better-intl does one thing:
+
+> It transforms your `t.ts` files into a single typed translation object grouped by feature path.
+
+Pipeline:
+
+```
+t.ts files (feature-based)
+        ↓
+scan project structure
+        ↓
+transpose locales into keys
+        ↓
+generate typed module
+        ↓
+you import a single `t`
+```
+
+The file system becomes your i18n structure.
+
+---
+
+# ⚙️ Setup (Next.js)
 
 ### 1. Install
 
@@ -50,9 +99,9 @@ t.homepage.hero.subtitle          // "Bem-vindo"
 bun add better-intl
 ```
 
-> Peers: `next` and `react` (you already have them in a Next app).
+---
 
-### 2. Add the Next.js plugin
+### 2. Add the plugin
 
 ```ts
 // next.config.ts
@@ -63,66 +112,54 @@ export default withInternationalization({
 })
 ```
 
-That's the whole build integration. `next dev` generates once and watches your `t.ts` files
-(Next's own watcher picks up the rewritten module → HMR); `next build` generates once before
-compiling. No bundler plugins.
+That’s it. No webpack plugins. No runtime setup.
 
-### 3. Configure locales & storage
+---
 
-Create an `intl.config.ts` (or `.js` / `.mjs`) at your project root:
+### 3. Configure
 
 ```ts
 // intl.config.ts
 import type { I18nUserConfig } from "better-intl"
 
 export default {
-  root: "./src",                  // where to scan for t.ts (default: "./app")
-  out: "./src/i18n/generated.ts", // where the typed module is written
-  defaultLocale: "en",            // canonical shape + ultimate fallback
-  locales: ["en", "pt", "es"],    // required set; omit to use the union found in source
-  onMissing: "warn",              // "error" | "warn" | "silent" (default: "warn")
-  fallback: { es: ["pt"] },       // per-locale chains; defaultLocale is always appended
-  storage: {                      // where the user's locale preference is stored
-    type: "cookie",               // "cookie" (SSR + CSR) | "localStorage" (CSR only)
-    key: "locale",                // cookie name / storage key
+  root: "./src",
+  out: "./src/i18n/generated.ts",
+
+  defaultLocale: "en",
+  locales: ["en", "pt", "es"],
+
+  onMissing: "warn",
+
+  fallback: {
+    es: ["pt"],
+  },
+
+  storage: {
+    type: "cookie",
+    key: "locale",
   },
 } satisfies I18nUserConfig
 ```
 
-### 4. Create your `lib/i18n` helpers
+---
 
-Three tiny files give you one `t` that works in **every** component — client or server — and
-resolves the active locale automatically.
-
-```ts
-// lib/i18n/client.ts — synchronous: cookie/localStorage + navigator
-import { findLocaleClient } from "better-intl/runtime"
-import { t as translations, intlConfig } from "@/i18n/generated"
-
-export const t = findLocaleClient(translations, intlConfig)
-```
+### 4. Create your i18n entry
 
 ```ts
-// lib/i18n/server.ts — synchronous t over a per-request store
-import { createServerT } from "better-intl/runtime"
-import { t as translations, intlConfig } from "@/i18n/generated"
+// lib/i18n.ts
+import { findLocaleClient, createServerT } from "better-intl/runtime"
+import { t, intlConfig } from "@/i18n/generated"
 
-export const { t, setLocale } = createServerT(translations, intlConfig)
-```
-
-```ts
-// lib/i18n/index.ts — pick the right one per environment
-import { t as clientT } from "./client"
-import { t as serverT } from "./server"
+export const clientT = findLocaleClient(t, intlConfig)
+export const { t: serverT, setLocale } = createServerT(t, intlConfig)
 
 export const t = typeof window !== "undefined" ? clientT : serverT
-export { setLocale } from "./server"
 ```
 
-### 5. Resolve the locale once in your root layout
+---
 
-The server locale lives in a cookie (per request, async), so you read it **once** at the top
-of the tree. Every Server Component below then uses `t` synchronously.
+### 5. Initialize locale once (App Router)
 
 ```tsx
 // app/layout.tsx
@@ -130,15 +167,14 @@ import { Suspense } from "react"
 import { setLocale } from "@/lib/i18n"
 
 async function Localized({ children }: { children: React.ReactNode }) {
-  await setLocale() // reads the cookie, fills the per-request store
-  return <>{children}</>
+  await setLocale()
+  return children
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>
-        {/* <Suspense> is required under `cacheComponents` (reading a cookie is dynamic) */}
         <Suspense fallback={null}>
           <Localized>{children}</Localized>
         </Suspense>
@@ -148,123 +184,133 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-✅ That's it. You never pass a locale by hand again.
-
 ---
 
-## Usage
+# 🧩 Usage
 
-### 1. Add translations
-
-Drop a `t.ts` anywhere under your scan `root`, next to the feature that uses it:
+### Define translations next to your feature
 
 ```ts
 // src/components/header/t.ts
 export default {
-  greeting: { en: "Hello {name}", pt: "Olá {name}", es: "Hola {name}" },
+  greeting: { en: "Hello {name}", pt: "Olá {name}" },
   nav: {
-    home: { en: "Home", pt: "Início", es: "Inicio" },
+    home: { en: "Home", pt: "Início" },
   },
 }
 ```
 
-Save — the generated module updates automatically (HMR in dev). The feature path becomes the
-key path: this file is reachable at `t.components.header.greeting`.
+---
 
-### 2. Use `t` anywhere
-
-Import the single `t` and read it like any typed object — **synchronously**, in Server or
-Client Components, no `await`:
+### Use anywhere (server or client)
 
 ```tsx
-// a Server Component (or a "use client" one — same import)
 import { t } from "@/lib/i18n"
 
 export function Header() {
   return (
     <header>
       <h1>{t.components.header.greeting({ name: "Ada" })}</h1>
-      <a href="/">{t.components.header.nav.home}</a>
+      <a>{t.components.header.nav.home}</a>
     </header>
   )
 }
 ```
 
-Missing keys, wrong locale names, and missing `{tokens}` are all **TypeScript errors**.
+No hooks. No async. No context.
 
-### 3. Let users switch the locale
+---
 
-`updateLocale` persists the choice to your configured storage (cookie/`localStorage` on the
-client, or a cookie via a Server Action / Route Handler on the server), then refresh:
+# 🌍 Locale resolution
 
-```tsx
-"use client"
-import { useRouter } from "next/navigation"
-import { updateLocale } from "better-intl/runtime"
-import { intlConfig } from "@/i18n/generated"
+better-intl resolves locale in this order:
 
-export function LocaleSwitcher() {
-  const router = useRouter()
-  const set = async (locale: string) => {
-    await updateLocale(locale, intlConfig)
-    router.refresh()
-  }
-  return (
-    <select onChange={(e) => set(e.target.value)}>
-      <option value="en">English</option>
-      <option value="pt">Português</option>
-      <option value="es">Español</option>
-    </select>
-  )
-}
+1. user stored preference (cookie / localStorage)
+2. browser / Accept-Language
+3. fallback chain
+4. defaultLocale
+
+Region-aware matching is supported:
+
+```
+pt-BR → pt
 ```
 
 ---
 
-## How locale resolution works
+# 🔁 Fallback system
 
-`findLocaleClient` / `createServerT` resolve the active locale in this order:
+If a translation is missing:
 
-1. the **stored preference** — the cookie or `localStorage` from your `storage` config;
-2. else the **browser** (`navigator.languages`, client) or the **`Accept-Language`** header
-   (`next/headers`, server);
-3. else `defaultLocale`.
+```
+locale → fallback → defaultLocale
+```
 
-Candidates are matched tolerant of region subtags — `pt-BR` resolves to a supported `pt`.
+Control behavior:
 
-> **Why `setLocale` + a per-request store?** `t.x.y` is synchronous, but `cookies()` is async
-> in Next. `createServerT` resolves the locale once (in `setLocale`, during render) into a
-> request-scoped store (React's `cache()`), and `t` is a proxy reading it synchronously. Each
-> request gets its own store (concurrency-safe), and it never hangs the prerender under
-> `cacheComponents` — only `setLocale` touches `cookies()`. Don't write
-> `export const t = await findLocaleServer(...)` at module top level: a module evaluates once
-> (the locale would freeze across requests) and the top-level `await cookies()` hangs.
+| mode   | behavior                 |
+| ------ | ------------------------ |
+| error  | fail build               |
+| warn   | log + fallback (default) |
+| silent | fallback silently        |
 
-## Fallback & missing keys
+---
 
-When a key lacks a required locale, better-intl walks its fallback chain
-(`locale → fallback[locale]… → defaultLocale`). If nothing resolves, `onMissing` decides:
+# 🧪 Why this exists
 
-| `onMissing` | Behaviour |
-| ----------- | --------- |
-| `"error"`   | fail the build, listing every gap |
-| `"warn"`    | log the gaps, fill from whatever the key does have (default) |
-| `"silent"`  | fill quietly |
+Traditional i18n forces you to think like this:
 
-> A `t.ts` node whose values are all strings is a **locale map** (a translation entry). Nest
-> plain objects to group keys: `stats: { users: { en, pt } }` → `t.stats.users`.
+> “Which file contains this string?”
 
-## Configuration reference
+better-intl flips it:
 
-| Option          | Default                      | Description |
-| --------------- | ---------------------------- | ----------- |
-| `root`          | `"./app"`                    | Directory scanned for `t.ts` files |
-| `out`           | `"./src/i18n/generated.ts"`  | Where the typed module is written |
-| `defaultLocale` | `"en"`                       | Canonical shape + ultimate fallback |
-| `locales`       | union found in source        | Required locale set |
-| `onMissing`     | `"warn"`                     | `"error"` \| `"warn"` \| `"silent"` |
-| `fallback`      | `{}`                         | Per-locale fallback chains, e.g. `{ es: ["pt"] }` |
-| `storage`       | `{ type: "cookie", key: "locale" }` | Where the locale preference is stored |
+> “Which feature contains this meaning?”
 
-Inline overrides take precedence over the file:
-`withInternationalization(nextConfig, { root: "./src/app" })`.
+---
+
+# 🔥 Compared to existing solutions
+
+### next-intl / i18next / formatjs
+
+| Problem                         | better-intl  |
+| ------------------------------- | ------------ |
+| runtime translation lookup      | ❌ removed    |
+| string keys                     | ❌ removed    |
+| provider/hook boilerplate       | ❌ removed    |
+| missing translations at runtime | ❌ impossible |
+| feature-based organization      | ✅ built-in   |
+| full type inference             | ✅ native     |
+
+---
+
+# 🧠 What makes it different
+
+* Feature-based colocation (`t.ts`)
+* Build-time transformation
+* Fully typed translation tree
+* Zero runtime dependency
+* Synchronous usage everywhere
+* Token-aware typing (`{ name }`)
+* Next.js-first design
+
+---
+
+# 📦 Configuration reference
+
+| option        | default        | description      |
+| ------------- | -------------- | ---------------- |
+| root          | `./app`        | scan root        |
+| out           | `generated.ts` | output file      |
+| defaultLocale | `en`           | fallback         |
+| locales       | inferred       | supported        |
+| onMissing     | `warn`         | missing handling |
+| fallback      | `{}`           | fallback map     |
+| storage       | cookie         | persistence      |
+
+---
+
+# 🧭 Philosophy
+
+better-intl is built on one belief:
+
+> Localization should follow your codebase structure — not fight it.
